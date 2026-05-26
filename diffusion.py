@@ -31,7 +31,7 @@ def get_beta_schedule(args):
 
     alpha_bars = 1.0 - var
     betas = 1 - alpha_bars[1:] / alpha_bars[:-1]
-    return betas.to(dtype=torch.float32).cpu()
+    return betas.to(dtype=torch.float32)
 
 
 def build_scheduler(args):

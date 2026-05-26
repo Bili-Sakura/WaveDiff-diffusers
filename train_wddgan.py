@@ -115,7 +115,7 @@ def train(rank, gpu, args):
 
     scheduler = build_scheduler(args)
     max_pair_timestep = max(
-        scheduler.config.num_train_timesteps - 2, 0)  # ensure t+1 stays in range
+        scheduler.config.num_train_timesteps - 1, 0)  # t+1 is clamped below
 
     if args.resume or os.path.exists(os.path.join(exp_path, 'content.pth')):
         checkpoint_file = os.path.join(exp_path, 'content.pth')
@@ -171,6 +171,8 @@ def train(rank, gpu, args):
                               (real_data.size(0),), device=device)
 
             x_t, x_tp1 = add_noise_pair(scheduler, real_data, t)
+            t_plus_one = torch.clamp(
+                t + 1, max=scheduler.config.num_train_timesteps - 1)
             x_t.requires_grad = True
 
             # train with real
@@ -189,7 +191,7 @@ def train(rank, gpu, args):
             latent_z = torch.randn(batch_size, nz, device=device)
             x_0_predict = netG(x_tp1.detach(), t, latent_z)
             x_pos_sample = scheduler_step(
-                scheduler, x_0_predict, t + 1, x_tp1)
+                scheduler, x_0_predict, t_plus_one, x_tp1)
 
             output = netD(x_pos_sample, t, x_tp1.detach()).view(-1)
             errD_fake = F.softplus(output).mean()
@@ -211,11 +213,13 @@ def train(rank, gpu, args):
             t = torch.randint(0, max_pair_timestep + 1,
                               (real_data.size(0),), device=device)
             x_t, x_tp1 = add_noise_pair(scheduler, real_data, t)
+            t_plus_one = torch.clamp(
+                t + 1, max=scheduler.config.num_train_timesteps - 1)
 
             latent_z = torch.randn(batch_size, nz, device=device)
             x_0_predict = netG(x_tp1.detach(), t, latent_z)
             x_pos_sample = scheduler_step(
-                scheduler, x_0_predict, t + 1, x_tp1)
+                scheduler, x_0_predict, t_plus_one, x_tp1)
 
             output = netD(x_pos_sample, t, x_tp1.detach()).view(-1)
             errG = F.softplus(-output).mean()
