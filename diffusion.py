@@ -31,7 +31,7 @@ def get_beta_schedule(args):
 
     alpha_bars = 1.0 - var
     betas = 1 - alpha_bars[1:] / alpha_bars[:-1]
-    return betas.to(dtype=torch.float32)
+    return betas.to(dtype=torch.float32).cpu()
 
 
 def build_scheduler(args, device):
@@ -42,14 +42,15 @@ def build_scheduler(args, device):
         prediction_type="sample",
         clip_sample=False,
     )
-    return scheduler.to(device)
+    return scheduler
 
 
 def add_noise_pair(scheduler, x_start, timesteps, noise=None):
     if noise is None:
         noise = torch.randn_like(x_start)
     timesteps = timesteps.to(x_start.device)
-    t_plus_one = timesteps + 1
+    t_plus_one = torch.clamp(
+        timesteps + 1, max=scheduler.config.num_train_timesteps - 1)
     x_t = scheduler.add_noise(x_start, noise, timesteps)
     x_t_plus_one = scheduler.add_noise(x_start, noise, t_plus_one)
     return x_t, x_t_plus_one

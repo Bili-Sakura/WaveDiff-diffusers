@@ -114,7 +114,7 @@ def train(rank, gpu, args):
                             os.path.join(exp_path, 'score_sde/models'))
 
     scheduler = build_scheduler(args, device)
-    max_timestep = scheduler.config.num_train_timesteps - 1
+    max_pair_timestep = max(scheduler.config.num_train_timesteps - 2, 0)
 
     if args.resume or os.path.exists(os.path.join(exp_path, 'content.pth')):
         checkpoint_file = os.path.join(exp_path, 'content.pth')
@@ -166,7 +166,7 @@ def train(rank, gpu, args):
             assert 0 < real_data.max() <= 1
 
             # sample t
-            t = torch.randint(0, max_timestep,
+            t = torch.randint(0, max_pair_timestep + 1,
                               (real_data.size(0),), device=device)
 
             x_t, x_tp1 = add_noise_pair(scheduler, real_data, t)
@@ -207,7 +207,7 @@ def train(rank, gpu, args):
                 p.requires_grad = True
             netG.zero_grad()
 
-            t = torch.randint(0, max_timestep,
+            t = torch.randint(0, max_pair_timestep + 1,
                               (real_data.size(0),), device=device)
             x_t, x_tp1 = add_noise_pair(scheduler, real_data, t)
 
