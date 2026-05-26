@@ -4,8 +4,7 @@ import os
 import numpy as np
 import torch
 import torchvision
-from diffusion import get_time_schedule, Posterior_Coefficients, \
-    sample_from_model
+from diffusion import build_scheduler, sample_from_model
 
 from DWT_IDWT.DWT_IDWT_layer import IDWT_2D
 from pytorch_fid.fid_score import calculate_fid_given_paths
@@ -53,9 +52,7 @@ def sample_and_test(args):
         iwt = IDWT_2D("haar")
     else:
         iwt = DWTInverse(mode='zero', wave='haar').cuda()
-    T = get_time_schedule(args, device)
-
-    pos_coeff = Posterior_Coefficients(args, device)
+    scheduler = build_scheduler(args, device)
 
     iters_needed = 50000 // args.batch_size
 
@@ -74,13 +71,13 @@ def sample_and_test(args):
         # GPU-WARM-UP
         for _ in range(10):
             _ = sample_from_model(
-                pos_coeff, netG, args.num_timesteps, x_t_1, T, args)
+                scheduler, netG, args.num_timesteps, x_t_1, args)
         # MEASURE PERFORMANCE
         with torch.no_grad():
             for rep in range(repetitions):
                 starter.record()
                 fake_sample = sample_from_model(
-                    pos_coeff, netG, args.num_timesteps, x_t_1, T, args)
+                    scheduler, netG, args.num_timesteps, x_t_1, args)
 
                 fake_sample *= 2.
                 fake_sample = iwt((fake_sample[:, :3], [torch.stack(
@@ -101,7 +98,7 @@ def sample_and_test(args):
                 x_t_1 = torch.randn(
                     args.batch_size, args.num_channels, args.image_size, args.image_size).to(device)
                 fake_sample = sample_from_model(
-                    pos_coeff, netG, args.num_timesteps, x_t_1, T, args)
+                    scheduler, netG, args.num_timesteps, x_t_1, args)
 
                 fake_sample *= 2
                 if not args.use_pytorch_wavelet:
@@ -129,7 +126,7 @@ def sample_and_test(args):
         x_t_1 = torch.randn(args.batch_size, args.num_channels,
                             args.image_size, args.image_size).to(device)
         fake_sample = sample_from_model(
-            pos_coeff, netG, args.num_timesteps, x_t_1, T, args)
+            scheduler, netG, args.num_timesteps, x_t_1, args)
 
         fake_sample *= 2
         if not args.use_pytorch_wavelet:

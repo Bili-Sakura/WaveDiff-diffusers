@@ -9,9 +9,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torchvision
 from datasets_prep.dataset import create_dataset
-from diffusion import sample_from_model, sample_posterior, \
-    q_sample_pairs, get_time_schedule, \
-    Posterior_Coefficients, Diffusion_Coefficients
+from diffusion import add_noise_pair, build_scheduler, sample_from_model, scheduler_step
 from DWT_IDWT.DWT_IDWT_layer import DWT_2D, IDWT_2D
 from pytorch_wavelets import DWTForward, DWTInverse
 from torch.multiprocessing import Process
@@ -115,9 +113,8 @@ def train(rank, gpu, args):
             shutil.copytree('score_sde/models',
                             os.path.join(exp_path, 'score_sde/models'))
 
-    coeff = Diffusion_Coefficients(args, device)
-    pos_coeff = Posterior_Coefficients(args, device)
-    T = get_time_schedule(args, device)
+    scheduler = build_scheduler(args, device)
+    max_timestep = scheduler.config.num_train_timesteps - 1
 
     if args.resume or os.path.exists(os.path.join(exp_path, 'content.pth')):
         checkpoint_file = os.path.join(exp_path, 'content.pth')
@@ -169,10 +166,10 @@ def train(rank, gpu, args):
             assert 0 < real_data.max() <= 1
 
             # sample t
-            t = torch.randint(0, args.num_timesteps,
+            t = torch.randint(0, max_timestep,
                               (real_data.size(0),), device=device)
 
-            x_t, x_tp1 = q_sample_pairs(coeff, real_data, t)
+            x_t, x_tp1 = add_noise_pair(scheduler, real_data, t)
             x_t.requires_grad = True
 
             # train with real
@@ -190,7 +187,8 @@ def train(rank, gpu, args):
             # train with fake
             latent_z = torch.randn(batch_size, nz, device=device)
             x_0_predict = netG(x_tp1.detach(), t, latent_z)
-            x_pos_sample = sample_posterior(pos_coeff, x_0_predict, x_tp1, t)
+            x_pos_sample = scheduler_step(
+                scheduler, x_0_predict, t + 1, x_tp1)
 
             output = netD(x_pos_sample, t, x_tp1.detach()).view(-1)
             errD_fake = F.softplus(output).mean()
@@ -209,13 +207,14 @@ def train(rank, gpu, args):
                 p.requires_grad = True
             netG.zero_grad()
 
-            t = torch.randint(0, args.num_timesteps,
+            t = torch.randint(0, max_timestep,
                               (real_data.size(0),), device=device)
-            x_t, x_tp1 = q_sample_pairs(coeff, real_data, t)
+            x_t, x_tp1 = add_noise_pair(scheduler, real_data, t)
 
             latent_z = torch.randn(batch_size, nz, device=device)
             x_0_predict = netG(x_tp1.detach(), t, latent_z)
-            x_pos_sample = sample_posterior(pos_coeff, x_0_predict, x_tp1, t)
+            x_pos_sample = scheduler_step(
+                scheduler, x_0_predict, t + 1, x_tp1)
 
             output = netD(x_pos_sample, t, x_tp1.detach()).view(-1)
             errG = F.softplus(-output).mean()
@@ -247,7 +246,7 @@ def train(rank, gpu, args):
 
             x_t_1 = torch.randn_like(real_data)
             fake_sample = sample_from_model(
-                pos_coeff, netG, args.num_timesteps, x_t_1, T, args)
+                scheduler, netG, args.num_timesteps, x_t_1, args)
 
             fake_sample *= 2
             real_data *= 2
