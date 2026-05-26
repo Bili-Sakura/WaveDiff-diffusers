@@ -48,7 +48,8 @@ def build_scheduler(args):
 def add_noise_pair(scheduler, x_start, timesteps, noise=None):
     if noise is None:
         noise = torch.randn_like(x_start)
-    timesteps = timesteps.to(x_start.device)
+    if timesteps.device != x_start.device:
+        timesteps = timesteps.to(x_start.device)
     max_timestep = scheduler.config.num_train_timesteps - 1
     t_plus_one = torch.clamp(timesteps + 1, max=max_timestep)
     x_t = scheduler.add_noise(x_start, noise, timesteps)
@@ -58,6 +59,9 @@ def add_noise_pair(scheduler, x_start, timesteps, noise=None):
 
 def scheduler_step(scheduler, model_output, timesteps, sample):
     if torch.is_tensor(timesteps) and timesteps.ndim > 0:
+        if timesteps.numel() > 0 and torch.all(timesteps == timesteps.view(-1)[0]):
+            t_value = int(timesteps.view(-1)[0])
+            return scheduler.step(model_output, t_value, sample).prev_sample
         prev_sample = torch.zeros_like(sample)
         for timestep in torch.unique(timesteps):
             t_value = int(timestep)
@@ -75,10 +79,11 @@ def sample_from_model(scheduler, generator, n_time, x_init, opt):
     scheduler.set_timesteps(n_time, device=x_init.device)
     x = x_init
     with torch.no_grad():
+        timestep_batch = torch.empty(
+            (x.size(0),), dtype=torch.int64, device=x.device)
         for timestep in scheduler.timesteps:
             t_value = int(timestep)
-            timestep_batch = torch.full(
-                (x.size(0),), t_value, dtype=torch.int64, device=x.device)
+            timestep_batch.fill_(t_value)
             latent_z = torch.randn(x.size(0), opt.nz, device=x.device)
             x_0 = generator(x, timestep_batch, latent_z)
             x = scheduler.step(x_0, t_value, x).prev_sample.detach()
