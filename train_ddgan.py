@@ -145,9 +145,8 @@ def train(rank, gpu, args):
             t = torch.randint(0, max_pair_timestep + 1,
                               (real_data.size(0),), device=device)
 
-            x_t, x_tp1 = add_noise_pair(scheduler, real_data, t)
-            t_plus_one = torch.clamp(
-                t + 1, max=scheduler.config.num_train_timesteps - 1)
+            x_t, x_tp1, t_plus_one = add_noise_pair(
+                scheduler, real_data, t)
             x_t.requires_grad = True
 
             # train with real
@@ -218,9 +217,8 @@ def train(rank, gpu, args):
             t = torch.randint(0, max_pair_timestep + 1,
                               (real_data.size(0),), device=device)
 
-            x_t, x_tp1 = add_noise_pair(scheduler, real_data, t)
-            t_plus_one = torch.clamp(
-                t + 1, max=scheduler.config.num_train_timesteps - 1)
+            x_t, x_tp1, t_plus_one = add_noise_pair(
+                scheduler, real_data, t)
 
             latent_z = torch.randn(batch_size, nz, device=device)
 

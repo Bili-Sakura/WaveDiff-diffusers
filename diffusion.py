@@ -53,7 +53,7 @@ def add_noise_pair(scheduler, x_start, timesteps, noise=None):
     t_plus_one = torch.clamp(timesteps + 1, max=max_timestep)
     x_t = scheduler.add_noise(x_start, noise, timesteps)
     x_t_plus_one = scheduler.add_noise(x_start, noise, t_plus_one)
-    return x_t, x_t_plus_one
+    return x_t, x_t_plus_one, t_plus_one
 
 
 def scheduler_step(scheduler, model_output, timesteps, sample):
