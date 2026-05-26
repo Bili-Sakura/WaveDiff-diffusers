@@ -34,7 +34,7 @@ def get_beta_schedule(args):
     return betas.to(dtype=torch.float32).cpu()
 
 
-def build_scheduler(args, device):
+def build_scheduler(args):
     betas = get_beta_schedule(args)
     scheduler = DDPMScheduler(
         num_train_timesteps=betas.shape[0],
@@ -67,7 +67,7 @@ def scheduler_step(scheduler, model_output, timesteps, sample):
             prev_sample[mask] = step_output.prev_sample
         return prev_sample
 
-    t_value = int(timesteps) if torch.is_tensor(timesteps) else int(timesteps)
+    t_value = int(timesteps)
     return scheduler.step(model_output, t_value, sample).prev_sample
 
 
@@ -76,7 +76,7 @@ def sample_from_model(scheduler, generator, n_time, x_init, opt):
     x = x_init
     with torch.no_grad():
         for timestep in scheduler.timesteps:
-            t_value = int(timestep) if torch.is_tensor(timestep) else int(timestep)
+            t_value = int(timestep)
             t_batch = torch.full(
                 (x.size(0),), t_value, dtype=torch.int64, device=x.device)
             latent_z = torch.randn(x.size(0), opt.nz, device=x.device)

@@ -52,7 +52,7 @@ def sample_and_test(args):
         iwt = IDWT_2D("haar")
     else:
         iwt = DWTInverse(mode='zero', wave='haar').cuda()
-    scheduler = build_scheduler(args, device)
+    scheduler = build_scheduler(args)
 
     iters_needed = 50000 // args.batch_size
 

@@ -41,7 +41,7 @@ def sample_and_test(args):
     netG.load_state_dict(ckpt)
     netG.eval()
 
-    scheduler = build_scheduler(args, device)
+    scheduler = build_scheduler(args)
 
     iters_needed = 50000 // args.batch_size
 

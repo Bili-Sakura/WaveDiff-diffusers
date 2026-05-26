@@ -113,8 +113,9 @@ def train(rank, gpu, args):
             shutil.copytree('score_sde/models',
                             os.path.join(exp_path, 'score_sde/models'))
 
-    scheduler = build_scheduler(args, device)
-    max_pair_timestep = max(scheduler.config.num_train_timesteps - 2, 0)  # keep room for t+1
+    scheduler = build_scheduler(args)
+    max_pair_timestep = max(
+        scheduler.config.num_train_timesteps - 2, 0)  # ensure t+1 stays in range
 
     if args.resume or os.path.exists(os.path.join(exp_path, 'content.pth')):
         checkpoint_file = os.path.join(exp_path, 'content.pth')
