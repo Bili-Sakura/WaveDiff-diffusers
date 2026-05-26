@@ -38,7 +38,7 @@ def build_scheduler(args, device):
     betas = get_beta_schedule(args)
     scheduler = DDPMScheduler(
         num_train_timesteps=betas.shape[0],
-        trained_betas=betas.cpu().numpy(),
+        trained_betas=betas.numpy(),
         prediction_type="sample",
         clip_sample=False,
     )
@@ -49,8 +49,8 @@ def add_noise_pair(scheduler, x_start, timesteps, noise=None):
     if noise is None:
         noise = torch.randn_like(x_start)
     timesteps = timesteps.to(x_start.device)
-    t_plus_one = torch.clamp(
-        timesteps + 1, max=scheduler.config.num_train_timesteps - 1)
+    max_timestep = scheduler.config.num_train_timesteps - 1
+    t_plus_one = torch.clamp(timesteps + 1, max=max_timestep)
     x_t = scheduler.add_noise(x_start, noise, timesteps)
     x_t_plus_one = scheduler.add_noise(x_start, noise, t_plus_one)
     return x_t, x_t_plus_one
@@ -58,7 +58,7 @@ def add_noise_pair(scheduler, x_start, timesteps, noise=None):
 
 def scheduler_step(scheduler, model_output, timesteps, sample):
     if torch.is_tensor(timesteps) and timesteps.ndim > 0:
-        prev_sample = torch.empty_like(sample)
+        prev_sample = torch.zeros_like(sample)
         for timestep in torch.unique(timesteps):
             t_value = int(timestep)
             mask = timesteps == timestep
