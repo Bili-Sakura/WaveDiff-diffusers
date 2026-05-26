@@ -55,6 +55,7 @@ Or you can install neccessary libraries as follows:
 ```bash
 pip install -r requirements.txt
 ```
+This refactor uses the Hugging Face `diffusers` scheduler (>=0.38.0), so ensure it is available in your environment.
 For `pytorch_wavelets`, please follow [here](https://github.com/fbcotter/pytorch_wavelets.git).
 
 ## Dataset preparation ##

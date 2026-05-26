@@ -7,3 +7,4 @@ scipy
 ninja
 einops
 PyWavelets
+diffusers==0.38.0
