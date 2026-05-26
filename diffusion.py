@@ -31,14 +31,14 @@ def get_beta_schedule(args):
 
     alpha_bars = 1.0 - var
     betas = 1 - alpha_bars[1:] / alpha_bars[:-1]
-    return betas.to(dtype=torch.float32)
+    return betas.to(dtype=torch.float32).cpu().numpy()
 
 
 def build_scheduler(args):
     betas = get_beta_schedule(args)
     scheduler = DDPMScheduler(
-        num_train_timesteps=betas.shape[0],
-        trained_betas=betas.numpy(),
+        num_train_timesteps=len(betas),
+        trained_betas=betas,
         prediction_type="sample",
         clip_sample=False,
     )
@@ -77,9 +77,9 @@ def sample_from_model(scheduler, generator, n_time, x_init, opt):
     with torch.no_grad():
         for timestep in scheduler.timesteps:
             t_value = int(timestep)
-            t_batch = torch.full(
+            timestep_batch = torch.full(
                 (x.size(0),), t_value, dtype=torch.int64, device=x.device)
             latent_z = torch.randn(x.size(0), opt.nz, device=x.device)
-            x_0 = generator(x, t_batch, latent_z)
+            x_0 = generator(x, timestep_batch, latent_z)
             x = scheduler.step(x_0, t_value, x).prev_sample.detach()
     return x
